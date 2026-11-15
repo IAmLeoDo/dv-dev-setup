@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# shellcheck disable=SC1090 # Module paths are selected from a fixed allowlist.
+# shellcheck disable=SC2016 # Shell initialization must expand when the user opens Bash.
+set -Eeuo pipefail
+SELF=$(readlink -f -- "${BASH_SOURCE[0]}")
+DV_ROOT=$(cd -- "$(dirname -- "$SELF")/../.." && pwd)
+source "$DV_ROOT/linux/lib/common.sh"
+command=${1:-help}; (($# == 0)) || shift
+case $command in
+    --version|version)
+        (($# == 0)) || die 'Usage: dv --version'
+        IFS= read -r version < "$DV_ROOT/../VERSION"
+        printf 'dv %s\n' "$version"
+        exit 0 ;;
+esac
+if [[ ( $command == install || $command == cleanup ) && -z ${DV_CONFIG:-} && -f $HOME/.config/dv/config.ini ]]; then
+    DV_CONFIG="$HOME/.config/dv/config.ini"
+fi
+load_config
+case $command in
+    help|--help|-h) printf 'dv --version | versions | help | doctor [--github] | install [--dry-run] | cleanup [cache|project DIR|python VERSION|node VERSION|all|tools|packages] [--apply] | workspace [open [--add] [DIR ...]|create NAME] | docker start|stop|restart|status|test | git status | worktree clone URL NAME|add feature|fix|refactor NAME [BASE]|list|open NAME|remove NAME\n' ;;
+    install)
+        [[ $# == 0 || ( $# == 1 && $1 == --dry-run ) ]] || die 'Usage: dv install [--dry-run]'
+        if [[ ${1:-} == --dry-run ]]; then DV_DRY_RUN=true; fi
+        source "$DV_ROOT/linux/lib/install.sh"
+        install_runtime ;;
+    versions|doctor|workspace|docker|git|worktree|cleanup) source "$DV_ROOT/linux/tools/commands/$command.sh" ;;
+    *) die "Unknown command: $command (see dv help)" ;;
+esac

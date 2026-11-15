@@ -1,0 +1,9 @@
+src/app/config.local.ini
+*.log
+.env
+.venv/
+__pycache__/
+*.pem
+id_ed25519*
+
+dist/
