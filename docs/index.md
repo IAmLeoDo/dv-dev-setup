@@ -19,7 +19,9 @@ within each guide follow Ubuntu, Windows, then macOS.
 | 10 | [Maintenance](content/maintenance.md) | Update tool versions, preserve user data, and validate releases. |
 | 11 | [Tooling Review](content/tooling-review.md) | Review current limitations and proposed improvements. |
 
-All documentation content lives in [`content/`](content/); this file is the
-entry point and reading-order index. See the [root README](../README.md) for
+Detailed topic guides live in [`content/`](content/); this file is the
+entry point and reading-order index. For issue reports, local development and
+pull requests, read [Contributing](../CONTRIBUTING.md).
+See the [root README](../README.md) for
 features, repository components, contributor instructions, and validation commands,
 or [runtime usage](../src/app/README.md) for commands from the application directory.

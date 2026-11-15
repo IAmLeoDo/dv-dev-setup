@@ -21,6 +21,7 @@ Scripts for preparing a consistent development environment on Ubuntu, with Windo
   - [🪟 Extend Windows Setup](#extend-windows-setup)
   - [📏 Development Standards](#development-standards)
 - [🧪 Testing and Validation](#testing-and-validation)
+- [🤝 Contributing](#contributing)
 - [📚 Further Documentation](#further-documentation)
 
 <a id="features"></a>
@@ -45,7 +46,7 @@ Windows setup prepares the host; run Ubuntu setup separately inside Ubuntu. Some
 - **Ubuntu:** Ubuntu 24.04 on x86_64 or aarch64, a regular development account with sudo access, and Internet access for installation. Docker requires systemd.
 - **Windows:** A WSL2-capable Windows host; validate deployments on Windows 11 with Ubuntu 24.04. Run Windows entrypoints from CMD or PowerShell. Administrator access is required for enabling Windows features.
 - **macOS:** Prepare an Ubuntu VM separately; this repository does not provision one. The Bash packaging script can run on macOS.
-- **Development checks:** Bash, make, and ShellCheck for the Linux lint workflow. Windows validation requires a Windows environment.
+- **Development checks:** Bash and ShellCheck for the Linux lint workflow. Windows validation requires a Windows environment.
 
 Keep the Ubuntu checkout in the Linux filesystem, such as `~/workspace/`, rather than `/mnt/c/`. Run Ubuntu setup as your development user, without prefixing the entire command with sudo.
 
@@ -56,7 +57,9 @@ Keep the Ubuntu checkout in the Linux filesystem, such as `~/workspace/`, rather
 ```text
 .
 ├── .github/
-│   └── workflows/               # Ubuntu and Windows CI
+│   ├── ISSUE_TEMPLATE/          # Bug reports and feature requests
+│   ├── pull_request_template.md # PR description and validation prompts
+│   └── workflows/               # Ubuntu, Windows and macOS packaging CI
 ├── dist/                        # Generated bundle; ignored by Git
 ├── docs/
 │   ├── index.md                 # Documentation and recommended reading order
@@ -78,6 +81,7 @@ Keep the Ubuntu checkout in the Linux filesystem, such as `~/workspace/`, rather
 │   │   ├── README.md            # Detailed runtime usage
 │   │   └── VERSION              # dv release version
 │   └── scripts/                 # Scripts grouped by purpose
+│       ├── check/               # Static checks and bundle validation
 │       └── ship/
 │           ├── ship.bat         # Windows batch packager
 │           ├── ship.sh          # Bash packager
@@ -85,7 +89,7 @@ Keep the Ubuntu checkout in the Linux filesystem, such as `~/workspace/`, rather
 │           ├── ship-readme.txt  # Bundled usage instructions
 │           └── ship-timestamp.js # Windows local timestamp formatter
 ├── AGENTS.md                    # Contributor and coding-agent guidelines
-└── Makefile                     # ship, lint, and check targets
+└── CONTRIBUTING.md              # Contribution workflow and PR preparation
 ```
 
 <a id="quick-start"></a>
@@ -219,7 +223,6 @@ Run from the repository root:
 | Environment | Command |
 | --- | --- |
 | Ubuntu Bash | `bash src/scripts/ship/ship.sh` |
-| Ubuntu with make | `make ship` |
 | Windows CMD | `src\scripts\ship\ship.bat` |
 | Windows PowerShell | `.\src\scripts\ship\ship.bat` |
 | macOS Bash | `bash src/scripts/ship/ship.sh` |
@@ -246,6 +249,9 @@ Each ship operation creates a new `dist/vX.X.X_yyMMdd_HHmmss/` directory and pre
 
 ## 🧑‍💻 Develop
 
+For reporting issues, preparing a fork and opening a PR, start with
+[Contributing](CONTRIBUTING.md). The sections below cover implementation details.
+
 <a id="clone-and-prepare"></a>
 
 ### 🌱 Clone and Prepare
@@ -262,7 +268,7 @@ Read [AGENTS.md](AGENTS.md) and the relevant files under `src/app/` before editi
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y make shellcheck
+sudo apt-get install -y shellcheck
 ```
 
 **Windows:** Clone with Git from CMD or PowerShell. Use Ubuntu under WSL for Bash development and linting, and validate batch changes in both Windows shells.
@@ -330,7 +336,7 @@ For example, to introduce a `database` component:
 
 ## 🧪 Testing and Validation
 
-There is currently no automated unit-test suite or `make test` target. `make check` runs ShellCheck only. Validate changes with static checks, packaging checks, and targeted runtime smoke tests.
+There is no automated unit-test suite. The shared check script runs Bash syntax checks and ShellCheck without make. Validate changes with static checks, packaging checks, and targeted runtime smoke tests.
 
 <a id="static-checks"></a>
 
@@ -339,22 +345,12 @@ There is currently no automated unit-test suite or `make test` target. `make che
 On Ubuntu, from Bash at the repository root:
 
 ```bash
-# Check syntax for every Bash script, including the extensionless dv CLI.
-find src -type f \( -name '*.sh' -o -name dv \) -print0 |
-    while IFS= read -r -d '' file; do
-        bash -n "$file" || exit 1
-    done
-
-# Requires make and ShellCheck.
-make check
+# Requires Bash and ShellCheck; checks all Bash scripts and the dv CLI.
+bash src/scripts/check/check.sh
 ```
 
-Without make, run the lint command directly if ShellCheck is installed:
-
-```bash
-find src -type f \( -name '*.sh' -o -name dv \) -print0 |
-    xargs -0 shellcheck -x -e SC1091
-```
+The script resolves the repository from its own location, so it can also be called
+by absolute path from another working directory. Missing ShellCheck is an error.
 
 <a id="packaging-smoke-tests"></a>
 
@@ -368,6 +364,7 @@ On Ubuntu, run:
 bash src/app/dev.sh help
 bash src/scripts/ship/ship.sh
 bash dist/vX.X.X_yyMMdd_HHmmss/dev.sh help
+bash src/scripts/check/bundle.sh dist/vX.X.X_yyMMdd_HHmmss
 ```
 
 Check that every manifest entry exists in the generated versioned bundle, and that private configuration and unrelated files are excluded. Copy the bundle to a temporary location outside the checkout and run help again to check path independence. Bash packaging normalizes batch files to CRLF, so account for line endings when comparing content.
@@ -414,12 +411,31 @@ Replace `git` with the affected module. Check existing installations, disabled m
 
 ### 🔄 CI Coverage
 
-The current workflow in [.github/workflows/test.yml](.github/workflows/test.yml) runs:
+The unified workflow in [.github/workflows/ci.yml](.github/workflows/ci.yml) runs on
+pull requests, pushes to `main`/`develop`, and manual dispatch. Older runs for the
+same PR/ref are cancelled when a new run starts.
 
-- **Ubuntu:** ShellCheck through `make check`, Bash packaging, and bundle artifact upload.
-- **Windows:** Batch packaging from CMD.
+- **Static checks on Ubuntu:** Bash syntax and ShellCheck through `bash src/scripts/check/check.sh`, plus workflow validation with actionlint.
+- **Ubuntu:** Bash packaging, exact manifest membership, matching source/bundle versions, and source/copied-bundle help and version checks. Invalid commands must fail. The copied bundle runs outside the checkout in a path containing spaces.
+- **macOS:** Bash packaging, manifest membership, matching versions, and bundle relocation. Ubuntu application commands are not run on macOS.
+- **Windows:** Native CMD packaging, exact manifest membership and matching versions, then batch entrypoint checks from both CMD and PowerShell. Checks cover help/version, invalid commands, extra version arguments, a different working directory, and a copied bundle path containing spaces and a literal `!`.
+- **Artifacts:** Verified bundles from each platform are retained for seven days. These are CI artifacts, not published releases.
 
-CI does not currently verify PowerShell invocation or perform real installation tests. Report any checks you could not run and the tools or platforms that were unavailable.
+Shipping increments `VERSION` only in each disposable CI checkout; CI does not
+commit or push the version change. Windows CI uses PowerShell only as a caller
+and verification harness; runtime and packaging remain native batch.
+CI does not install tools through setup, provision WSL, or validate administrator
+operations. Perform actual installation checks on dedicated machines or VMs.
+Report any checks you could not run and the unavailable tools or platforms.
+
+<a id="contributing"></a>
+
+## 🤝 Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the fork/branch workflow, development
+requirements, validation commands and review expectations. Ordinary contribution
+PRs target `develop`. Use the issue templates for bug reports and feature requests,
+and complete the PR template with actual validation results and platform limits.
 
 <a id="further-documentation"></a>
 

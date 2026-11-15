@@ -15,7 +15,7 @@ retained in `DV_TOOLS_ROOT/backups` when content changes.
 From the repository root:
 
 ```bash
-make check
+bash src/scripts/check/check.sh
 bash src/app/dev.sh setup --dry-run
 bash src/app/dev.sh setup --verify
 dv doctor --github

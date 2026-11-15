@@ -160,7 +160,7 @@ Packaging creates `dist/vX.X.X_yyMMdd_HHmmss/` at the repository root without re
 
 ## Development and Validation
 
-See the [root README](../../README.md#develop) for module/CLI extension instructions and [Testing and Validation](../../README.md#testing-and-validation) for syntax, lint, packaging, and platform smoke checks. `make check` runs ShellCheck only; there is no current automated unit-test suite.
+See the [root README](../../README.md#develop) for module/CLI extension instructions and [Testing and Validation](../../README.md#testing-and-validation) for syntax, lint, packaging, and platform smoke checks. `bash ../scripts/check/check.sh` runs Bash syntax checks and ShellCheck from this directory; there is no automated unit-test suite.
 
 [Installation](../../docs/content/installation.md) · [Usage](../../docs/content/usage.md) · [Ship](../../docs/content/ship.md)
 

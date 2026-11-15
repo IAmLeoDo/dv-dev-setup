@@ -1,0 +1,161 @@
+name: CI
+
+# Check every PR, but only run push builds on the primary branches to avoid
+# running both push and PR builds for each commit on a feature branch.
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+# Validation only reads the repository. It never commits the ship version bump
+# or publishes a release; generated bundles are temporary CI artifacts.
+permissions:
+  contents: read
+
+# Replace an older run for the same PR/ref when a newer commit arrives.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static:
+    name: Bash syntax and ShellCheck
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install lint tool
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+      # Use the same command locally and in CI; make is not required.
+      - name: Check all Bash sources and the dv CLI
+        run: bash src/scripts/check/check.sh
+      # actionlint checks workflow structure, expressions and embedded Bash.
+      # Pin the validator version and extract it only into the runner's temp dir.
+      - name: Validate GitHub Actions workflow
+        env:
+          ACTIONLINT_VERSION: '1.7.7'
+        run: |
+          tool_dir=$(mktemp -d "$RUNNER_TEMP/actionlint.XXXXXX")
+          curl --fail --location --retry 3 \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" \
+            --output "$tool_dir/actionlint.tar.gz"
+          tar -xzf "$tool_dir/actionlint.tar.gz" -C "$tool_dir" actionlint
+          "$tool_dir/actionlint" -color
+
+  package:
+    name: Package (${{ matrix.os }})
+    needs: static
+    strategy:
+      # Preserve results from the other platform when one platform fails.
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      # Ship only copies allowlisted runtime files. Its VERSION change stays in
+      # this disposable checkout and is never pushed back to the repository.
+      - name: Build standalone bundle
+        run: bash src/scripts/ship/ship.sh
+      # A clean checkout must produce exactly one bundle. The helper verifies
+      # file membership, version and relocation. Runtime checks run on Linux only.
+      - name: Verify bundle and safe entrypoints
+        run: |
+          bundles=(dist/v*/)
+          [[ ${#bundles[@]} -eq 1 && -d ${bundles[0]} ]]
+          bash src/scripts/check/bundle.sh "${bundles[0]}"
+      - name: Upload verified bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: dv-dev-setup-${{ matrix.os }}
+          path: dist/v*/
+          if-no-files-found: error
+          retention-days: 7
+
+  windows:
+    name: Package and entrypoints (Windows)
+    needs: static
+    runs-on: windows-latest
+    timeout-minutes: 10
+    env:
+      # Suppress interactive pauses in dev.bat; never call setup or the menu.
+      DV_NO_PAUSE: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      # Native CMD packaging must work without Bash, Python, make or .ps1 files.
+      - name: Build bundle from CMD
+        shell: cmd
+        run: |
+          call src\scripts\ship\ship.bat
+          if errorlevel 1 exit /b 1
+      # PowerShell here is a CI caller of the native batch entrypoints, not an
+      # application dependency. No PowerShell scripts are added to the repository.
+      - name: Verify manifest and entrypoints from PowerShell
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $bundles = @(Get-ChildItem -Path dist -Directory -Filter 'v*')
+          if ($bundles.Count -ne 1) { throw 'Expected exactly one bundle' }
+          $bundle = $bundles[0].FullName
+          $expected = @(Get-Content src/scripts/ship/ship-files.txt |
+            Where-Object { $_ -and -not $_.StartsWith('#') })
+          $expected += @('LICENSE', 'README.txt')
+          $actual = @(Get-ChildItem -LiteralPath $bundle -Recurse -File |
+            ForEach-Object { $_.FullName.Substring($bundle.Length + 1).Replace('\', '/') })
+          if (Compare-Object ($expected | Sort-Object) ($actual | Sort-Object)) {
+            throw 'Bundle contents differ from the shipping manifest'
+          }
+          $version = (Get-Content src/app/VERSION -Raw).Trim()
+          if ((Get-Content "$bundle/VERSION" -Raw).Trim() -ne $version) {
+            throw 'Source and bundle versions differ'
+          }
+          # Copy outside the checkout into a path with both spaces and a literal
+          # exclamation mark, then change cwd to expose relative-path assumptions.
+          $copy = Join-Path $env:RUNNER_TEMP 'copied bundle !'
+          Copy-Item -LiteralPath $bundle -Destination $copy -Recurse
+          $source = Join-Path $env:GITHUB_WORKSPACE 'src/app/dev.bat'
+          $entrypoints = @($source, (Join-Path $copy 'dev.bat'))
+          Set-Location $env:RUNNER_TEMP
+          foreach ($entrypoint in $entrypoints) {
+            & $entrypoint help
+            if ($LASTEXITCODE -ne 0) { throw 'Help failed' }
+            $output = & $entrypoint --version
+            if ($LASTEXITCODE -ne 0 -or $output -ne "dv $version") { throw 'Version failed' }
+            & $entrypoint invalid-ci-command
+            if ($LASTEXITCODE -ne 2) { throw 'Invalid command must return 2' }
+            & $entrypoint --version extra
+            if ($LASTEXITCODE -ne 2) { throw 'Extra argument must return 2' }
+          }
+          # Persist only a trusted runner-generated path for the CMD step.
+          "CI_BUNDLE=$copy" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          # The last intentional failure must not become the step's exit code.
+          exit 0
+      - name: Verify entrypoints from CMD outside the checkout
+        shell: cmd
+        run: |
+          cd /d "%RUNNER_TEMP%"
+          call "%GITHUB_WORKSPACE%\src\app\dev.bat" help
+          if errorlevel 1 exit /b 1
+          call "%CI_BUNDLE%\dev.bat" help
+          if errorlevel 1 exit /b 1
+          call "%CI_BUNDLE%\dev.bat" --version
+          if errorlevel 1 exit /b 1
+          call "%CI_BUNDLE%\dev.bat" invalid-ci-command
+          if not errorlevel 2 exit /b 1
+          if errorlevel 3 exit /b 1
+          call "%CI_BUNDLE%\dev.bat" --version extra
+          if not errorlevel 2 exit /b 1
+          if errorlevel 3 exit /b 1
+          exit /b 0
+      - name: Upload verified Windows bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: dv-dev-setup-windows
+          path: dist/v*/
+          if-no-files-found: error
+          retention-days: 7

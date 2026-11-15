@@ -287,7 +287,7 @@ Read [Security](security.md), [Troubleshooting](troubleshooting.md), and [Mainte
 ## Validation
 
 ```bash
-make check  # Requires make and ShellCheck; runs lint only.
+bash src/scripts/check/check.sh  # Requires Bash and ShellCheck.
 ```
 
-CI runs ShellCheck and Bash packaging on Ubuntu, and batch packaging from Windows CMD. Validate actual installation on dedicated environments before release. See [Testing and Validation](../../README.md#testing-and-validation) for detailed checks and coverage limits.
+The unified CI workflow checks Bash syntax and ShellCheck, packages on Ubuntu/macOS/Windows, and checks safe Windows entrypoints from CMD and PowerShell. Validate actual installation on dedicated environments before release. See [Testing and Validation](../../README.md#testing-and-validation) for detailed checks and coverage limits.

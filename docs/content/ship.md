@@ -10,12 +10,12 @@ Run from the repository root, using the appropriate shell:
 
 | Platform | Command |
 | --- | --- |
-| Ubuntu Bash | `bash src/scripts/ship/ship.sh` or `make ship` |
+| Ubuntu Bash | `bash src/scripts/ship/ship.sh` |
 | Windows CMD | `src\scripts\ship\ship.bat` |
 | Windows PowerShell | `.\src\scripts\ship\ship.bat` |
 | macOS Bash | `bash src/scripts/ship/ship.sh` |
 
-The scripts copy files listed in `src/scripts/ship/ship-files.txt`; they do not execute installers. Python and PowerShell scripts are not required. make is optional.
+The scripts copy files listed in `src/scripts/ship/ship-files.txt`; they do not execute installers. Python and PowerShell scripts are not required. make is not required.
 
 ```text
 dist/
@@ -116,4 +116,4 @@ The current `config.ini` is packaged beside the entrypoints. Never place secrets
 
 Each packaging run creates a new versioned directory under `dist/` and preserves older bundles; do not keep persistent data there. Add new runtime files to the manifest when extending the application.
 
-Run `make check` for ShellCheck and `make ship` for packaging when the required tools are available. Validate source and bundled help commands, manifest contents, and execution after copying the bundle outside the checkout. See [Testing and Validation](../../README.md#testing-and-validation) for commands and CI coverage. Perform installation smoke tests on dedicated machines before release.
+Run `bash src/scripts/check/check.sh` for Bash syntax and ShellCheck, then `bash src/scripts/ship/ship.sh` for packaging. Validate a generated bundle with `bash src/scripts/check/bundle.sh dist/vX.X.X_yyMMdd_HHmmss` (replace the directory with the actual output). Validate source and bundled help commands, manifest contents, and execution after copying the bundle outside the checkout. See [Testing and Validation](../../README.md#testing-and-validation) for commands and CI coverage. Perform installation smoke tests on dedicated machines before release.
