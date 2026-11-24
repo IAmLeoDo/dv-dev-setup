@@ -8,12 +8,16 @@ Packaging creates a runtime bundle for distribution. It is optional: a checkout 
 
 Run from the repository root, using the appropriate shell:
 
+Without `--apply`, both packagers only summarize the destination, files and next
+version. No bundle directory is created and `VERSION` is unchanged. `--dry-run`
+explicitly requests this default; it cannot be combined with `--apply`.
+
 | Platform | Command |
 | --- | --- |
-| Ubuntu Bash | `bash src/scripts/ship/ship.sh` |
-| Windows CMD | `src\scripts\ship\ship.bat` |
-| Windows PowerShell | `.\src\scripts\ship\ship.bat` |
-| macOS Bash | `bash src/scripts/ship/ship.sh` |
+| Ubuntu Bash | `bash src/scripts/ship/ship.sh --apply` |
+| Windows CMD | `src\scripts\ship\ship.bat --apply` |
+| Windows PowerShell | `.\src\scripts\ship\ship.bat --apply` |
+| macOS Bash | `bash src/scripts/ship/ship.sh --apply` |
 
 The scripts copy files listed in `src/scripts/ship/ship-files.txt`; they do not execute installers. Python and PowerShell scripts are not required. make is not required.
 
@@ -41,7 +45,7 @@ Windows uses the built-in `cscript` host and `src/scripts/ship/ship-timestamp.js
 
 Copy the entire directory, including `internal/`, to the destination. From that directory:
 
-- **Ubuntu:** `bash dev.sh setup`, then `bash dev.sh check`.
+- **Ubuntu:** `bash dev.sh setup --apply`, then `bash dev.sh check`.
 - **Windows CMD:** `dev.bat setup`, then `dev.bat check`.
 - **Windows PowerShell:** `.\dev.bat setup`, then `.\dev.bat check`.
 - **macOS:** Run setup inside a separately prepared Ubuntu VM.
@@ -49,7 +53,7 @@ Copy the entire directory, including `internal/`, to the destination. From that 
 ### Where Tools Are Installed
 
 An extracted bundle can be used from a temporary Linux directory such as
-`~/Downloads/<bundle-directory>/`. Ubuntu setup automatically copies its Linux
+`~/Downloads/<bundle-directory>/`. Ubuntu setup with `--apply` copies its Linux
 runtime into a stable user-owned tools directory before running selected modules:
 
 ```text
@@ -65,12 +69,12 @@ From the extracted bundle inside Ubuntu/WSL:
 
 ```bash
 bash dev.sh setup --only aliases --dry-run
-bash dev.sh setup --only aliases
+bash dev.sh setup --only aliases --apply
 source "$HOME/.config/dv/aliases.bash"
 dvc
 ```
 
-Use `bash dev.sh setup --only tools` or `bash dev.sh install` to copy/register
+Use `bash dev.sh setup --only tools --apply` or `bash dev.sh install --apply` to copy/register
 just the CLI runtime. These do not install Git, Python, Node, or Docker. Full setup
 also installs the tool copy before running package modules. `--dry-run` never
 copies files. No sudo is required for the tools copy.
@@ -93,7 +97,7 @@ Recognized legacy dv symlinks are migrated to the copy; a link to a different so
 
 After alias setup succeeds, the source checkout or extracted bundle can be moved
 or removed without breaking installed commands. For shortcuts created by older
-source-based versions, run `setup --only aliases` once; `install`/`--only tools`
+source-based versions, run `setup --only aliases --apply` once; `install --apply`/`--only tools`
 refreshes the CLI copy but does not regenerate existing aliases. `dvc` begins with **TOOL PATHS**,
 showing the actual active runtime, CLI and config paths. A direct diagnostic
 command run from source still reports the source path; it does not install tools.
@@ -116,4 +120,4 @@ The current `config.ini` is packaged beside the entrypoints. Never place secrets
 
 Each packaging run creates a new versioned directory under `dist/` and preserves older bundles; do not keep persistent data there. Add new runtime files to the manifest when extending the application.
 
-Run `bash src/scripts/check/check.sh` for Bash syntax and ShellCheck, then `bash src/scripts/ship/ship.sh` for packaging. Validate a generated bundle with `bash src/scripts/check/bundle.sh dist/vX.X.X_yyMMdd_HHmmss` (replace the directory with the actual output). Validate source and bundled help commands, manifest contents, and execution after copying the bundle outside the checkout. See [Testing and Validation](../../README.md#testing-and-validation) for commands and CI coverage. Perform installation smoke tests on dedicated machines before release.
+Run `bash src/scripts/check/check.sh` for Bash syntax and ShellCheck, then `bash src/scripts/ship/ship.sh --apply` for packaging. Validate a generated bundle with `bash src/scripts/check/bundle.sh dist/vX.X.X_yyMMdd_HHmmss` (replace the directory with the actual output). Validate source and bundled help commands, manifest contents, and execution after copying the bundle outside the checkout. See [Testing and Validation](../../README.md#testing-and-validation) for commands and CI coverage. Perform installation smoke tests on dedicated machines before release.

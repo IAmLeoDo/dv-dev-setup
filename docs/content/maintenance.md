@@ -3,8 +3,8 @@
 [Documentation index](../index.md)
 
 Inspect `git status` before updating. With a clean working tree on the intended branch, use `git pull --ff-only` and review script/configuration changes before running setup again. Installed tools are a copy, so checkout updates do not change them automatically.
-Run `bash src/app/dev.sh install` or `setup --only tools` to refresh that copy.
-When migrating older source-based aliases, use `setup --only aliases` once to
+Run `bash src/app/dev.sh install --apply` or `setup --only tools --apply` to refresh that copy.
+When migrating older source-based aliases, use `setup --only aliases --apply` once to
 retarget the shortcuts too.
 User settings in `~/.config/dv/config.ini` are preserved; edit that file instead
 of editing the installed runtime's default template. Previous runtime trees are
@@ -51,4 +51,4 @@ Run ShellCheck and packaging checks on Ubuntu, then batch packaging and entrypoi
 To remove managed Bash shortcuts, remove the source line referencing
 `$HOME/.config/dv/aliases.bash` from `~/.bashrc` and remove that generated file.
 Open a new shell afterward. To update shortcuts, edit `[aliases]` in `config.ini`
-and rerun `setup --only aliases`; the install toggle only skips future setup.
+and rerun `setup --only aliases --apply`; the install toggle only skips future setup.

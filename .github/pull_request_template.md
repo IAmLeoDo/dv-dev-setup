@@ -41,4 +41,5 @@
 - [ ] Documentation and help examples match changed behavior, or are unaffected.
 - [ ] Runtime allowlists are updated for added/moved files, or are unaffected.
 - [ ] Validation results and unavailable platforms are recorded above.
+- [ ] Mutating commands preview by default and require `--apply`; both modes were checked where applicable.
 - [ ] Generated bundles and incidental local version bumps are excluded; intentional release changes are explained.

@@ -3,7 +3,7 @@
 [Documentation index](../index.md)
 
 Edit **`src/app/config.ini`**, beside `dev.sh` and `dev.bat`. The packaged equivalent is `dist/vX.X.X_yyMMdd_HHmmss/config.ini`.
-On first setup/install, this template also initializes `~/.config/dv/config.ini`.
+On first setup/install with `--apply`, this template also initializes `~/.config/dv/config.ini`.
 Edit that persistent user file after installation. Installed tools load their
 copied `config.ini` defaults, then this user override. Existing environment
 variables still take priority; explicit `DV_CONFIG` selects a different override.
@@ -41,6 +41,7 @@ Set `DV_CONFIG=/absolute/path/config.local.ini` to load a private override. The 
 | `DV_NVM_VERSION` | Tag for new installations: `v0.40.4` |
 | `DV_INSTALL_GIT`, `DV_INSTALL_SSH`, `DV_INSTALL_PYTHON`, `DV_INSTALL_NODE`, `DV_INSTALL_DOCKER`, `DV_INSTALL_ALIASES` | Default `true`; `false` skips the corresponding module even with `--only` |
 | `DV_DOCKER_ON_DEMAND` | Default `true`: disable/stop the service and socket after setup; `false`: enable/start the service |
+| `DV_DOCKER_ADD_USER_TO_GROUP` | Default `false`; opt in to adding the current setup user to `docker` with `--apply`, preserving existing groups. Grants root-equivalent access; log in again or run `newgrp docker` afterward. |
 | `DV_SSH_GENERATE` | Default `false`; enable key creation when no key exists |
 | `DV_SSH_NO_PASSPHRASE` | Default `false`; separate opt-in for a key without a passphrase |
 | `DV_GITHUB_TEST` | Default `false`; test SSH authentication after the SSH module |
@@ -53,7 +54,7 @@ Example with spaces in Ubuntu paths:
 ```bash
 DV_WORKSPACE_ROOT="$HOME/workspace custom" \
 DV_PROJECTS_ROOT="$HOME/workspace custom/devimony" \
-bash src/app/dev.sh setup --only workspace
+bash src/app/dev.sh setup --only workspace --apply
 ```
 
 Booleans accept only `true` or `false`. Unknown keys and invalid version/path values are rejected before setup changes the system. New setup keys require explicit parser support and validation.
@@ -93,11 +94,11 @@ and quoted values are rejected. Arguments can be appended when using an alias,
 for example `gd --stat`. A `[aliases]` section in `DV_CONFIG` replaces the whole
 section; an empty section generates no aliases.
 
-Preview and apply from the repository root (setup copies the tools first):
+Preview and apply from the repository root (only `--apply` copies the tools first):
 
 ```bash
 bash src/app/dev.sh setup --only aliases --dry-run
-bash src/app/dev.sh setup --only aliases
+bash src/app/dev.sh setup --only aliases --apply
 ```
 
 Setup generates `~/.config/dv/aliases.bash` atomically and adds one source line to
@@ -130,6 +131,9 @@ to `false` skips setup; it does not remove previously installed aliases.
 
 Keep WSL keys unique, without inline comments or quoted values:
 
+Windows preview validates the same LF/CRLF configuration data without creating
+temporary files. Add `--apply` to write `.wslconfig` after confirmation and backup.
+
 - `memory`: positive integer followed by `MB` or `GB`.
 - `swap`: the same format, or `0`.
 - `localhostForwarding`: `true` or `false`.
@@ -139,14 +143,14 @@ Set an external override in CMD:
 
 ```bat
 set "DV_CONFIG=C:\path\config.local.ini"
-src\app\dev.bat setup 3
+src\app\dev.bat setup 3 --apply
 ```
 
 Or in PowerShell:
 
 ```powershell
 $env:DV_CONFIG = 'C:\path\config.local.ini'
-.\src\app\dev.bat setup 3
+.\src\app\dev.bat setup 3 --apply
 ```
 
 ## macOS
@@ -156,3 +160,12 @@ Use the Ubuntu configuration inside your VM. No native macOS setup section is im
 ## Distribution and Secrets
 
 Packaging copies the current `config.ini`; never place secrets in it. External overrides referenced by `DV_CONFIG` are not packaged automatically. Merge editor settings manually to preserve existing preferences.
+
+## Execution Mode
+
+Configuration selects desired settings, never permission to apply them. Every
+mutating invocation previews by default and requires `--apply` to execute.
+`--dry-run` explicitly previews; combining both flags is rejected. An inherited
+`DV_DRY_RUN=false` does not authorize writes, and `DV_DRY_RUN=true` blocks apply.
+Keep alias targets as the exact supported base commands; append `--apply` when
+invoking an alias, for example `dvwo . --apply` or `dvds --apply`.

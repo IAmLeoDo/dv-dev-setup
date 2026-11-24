@@ -1,5 +1,6 @@
 # Linux runtime files only; user config and workspace data are never copied.
 internal/linux/lib/aliases.sh
+internal/linux/lib/docker.sh
 internal/linux/lib/install.sh
 internal/linux/install-files.txt
 internal/linux/lib/cleanup-tools.sh

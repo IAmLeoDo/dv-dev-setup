@@ -45,6 +45,7 @@
 - Follow `.editorconfig`. Use UTF-8 and LF line endings for Bash files.
 - Help and diagnostic commands must not install software or modify the system.
 - Dry-run mode must not write data or install software. Repeated setup runs must preserve existing configuration and installations.
+- Commands that install, write data, open editors, change services or package releases must default to a summary-only dry-run. Require explicit `--apply` on each invocation to execute; never infer consent from configuration or environment. Reject combining `--apply` and `--dry-run`, explain how to apply the plan, and retain existing confirmations/backups. Read-only commands do not require `--apply`.
 - Report actionable errors and return a nonzero exit code when required steps fail. Do not suppress failures and report success.
 
 ## Configuration and Data Safety
@@ -69,7 +70,7 @@
 1. Read the relevant implementation and documentation, then inspect `git status`. Preserve existing user changes.
 2. When changing structure or paths, update all affected Bash and batch scripts, shipping manifests, validation scripts, CI workflows, ignore rules, and documentation.
 3. Run `bash -n` on changed Bash files. Run `bash src/scripts/check/check.sh` for Bash syntax and ShellCheck when the required tools are available. Fix lint failures introduced by the change.
-4. For packaging or path changes, run `bash src/scripts/ship/ship.sh` or `src\scripts\ship\ship.bat` on the corresponding platform. Compare the bundle with the shipping manifest and run the help command from both source and `dist/`.
+4. For packaging or path changes, run `bash src/scripts/ship/ship.sh --apply` or `src\scripts\ship\ship.bat --apply` on the corresponding platform. Compare the bundle with the shipping manifest and run the help command from both source and `dist/`.
 5. For Windows changes, validate the same `.bat` entrypoints from CMD and PowerShell. Check arguments, exit codes, paths containing spaces, and execution from a different working directory. Bash checks do not validate batch behavior.
 6. Do not run actual setup on the development machine solely to validate code. Use dry-run where appropriate and a dedicated machine or VM for installation and administrator-level smoke tests.
 7. Report what changed, what was verified, and any remaining limitations. Explicitly identify unavailable tools or platforms; never claim an unperformed check passed.

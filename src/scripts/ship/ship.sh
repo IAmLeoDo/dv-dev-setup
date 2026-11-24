@@ -1,6 +1,20 @@
 #!/usr/bin/env bash
 # Package scripts and configuration templates; never run the installers.
 set -Eeuo pipefail
+mode=''
+while (($#)); do
+    case $1 in
+        --apply|--dry-run)
+            [[ -z $mode || $mode == "$1" ]] || { printf 'Do not combine --apply and --dry-run.\n' >&2; exit 2; }
+            mode=$1 ;;
+        --help|-h)
+            printf 'Usage: bash ship.sh [--apply | --dry-run]\nDefault: summary only. Add --apply to create a bundle and increment VERSION.\n'
+            exit 0 ;;
+        *) printf 'Unknown argument: %s\n' "$1" >&2; exit 2 ;;
+    esac
+    shift
+done
+[[ ${DV_DRY_RUN:-false} != true || $mode != --apply ]] || { printf 'DV_DRY_RUN=true prevents --apply.\n' >&2; exit 2; }
 SHIP_ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 SOURCE=$(cd -- "$SHIP_ROOT/../../app" && pwd)
 ROOT=$(cd -- "$SHIP_ROOT/../../.." && pwd)
@@ -27,6 +41,21 @@ fi
 next_version="$major.$minor.$patch"
 timestamp=$(date '+%y%m%d_%H%M%S')
 OUTPUT="$DIST_ROOT/v${next_version}_${timestamp}"
+# Validate the allowlist before previewing or writing any distribution files.
+file_count=0
+while IFS= read -r relative || [[ -n $relative ]]; do
+    relative=${relative%$'\r'}
+    [[ -n $relative && $relative != \#* ]] || continue
+    [[ -f $SOURCE/$relative ]] || { printf 'Missing runtime file: %s\n' "$relative" >&2; exit 1; }
+    file_count=$((file_count + 1))
+done < "$SHIP_ROOT/ship-files.txt"
+[[ -f $ROOT/LICENSE && -f $SHIP_ROOT/ship-readme.txt ]] || { printf 'Packaging documentation is missing.\n' >&2; exit 1; }
+if [[ $mode != --apply ]]; then
+    printf 'Plan: copy %s runtime files plus LICENSE/README.txt into %s\n' "$file_count" "$OUTPUT"
+    printf 'Plan: advance source and bundle VERSION from %s to %s after successful copies.\n' "$version" "$next_version"
+    printf 'Preview only. Nothing changed. Add --apply to package the bundle.\n'
+    exit 0
+fi
 mkdir -p -- "$DIST_ROOT"
 mkdir -- "$OUTPUT"
 while IFS= read -r relative || [[ -n $relative ]]; do

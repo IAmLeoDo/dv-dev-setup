@@ -2,6 +2,8 @@
 # shellcheck disable=SC1090 # Module paths are selected from a fixed allowlist.
 # shellcheck disable=SC2016 # Shell initialization must expand when the user opens Bash.
 set -Eeuo pipefail
+# Read-only Git queries must not refresh/write repository indexes incidentally.
+export GIT_OPTIONAL_LOCKS=0
 SELF=$(readlink -f -- "${BASH_SOURCE[0]}")
 DV_ROOT=$(cd -- "$(dirname -- "$SELF")/../.." && pwd)
 source "$DV_ROOT/linux/lib/common.sh"
@@ -18,12 +20,28 @@ if [[ ( $command == install || $command == cleanup ) && -z ${DV_CONFIG:-} && -f 
 fi
 load_config
 case $command in
-    help|--help|-h) printf 'dv --version | versions | help | doctor [--github] | install [--dry-run] | cleanup [cache|project DIR|python VERSION|node VERSION|all|tools|packages] [--apply] | workspace [open [--add] [DIR ...]|create NAME] | docker start|stop|restart|status|test | git status | worktree clone URL NAME|add feature|fix|refactor NAME [BASE]|list|open NAME|remove NAME\n' ;;
+    help|--help|-h) printf '%s\n' \
+        'dv --version | versions | help | doctor [--github]' \
+        'dv install [--apply | --dry-run]' \
+        'dv cleanup [cache|project DIR|python VERSION|node VERSION|all|tools|packages] [--apply | --dry-run]' \
+        'dv workspace [show|open [--add] [DIR ...]|create NAME] [--apply | --dry-run]' \
+        'dv docker start|stop|restart|test [--apply | --dry-run]; dv docker status' \
+        'dv git status' \
+        'dv worktree clone URL NAME|add feature|fix|refactor NAME [BASE]|open NAME|remove NAME [--apply | --dry-run]' \
+        'dv worktree list' \
+        'Mutating commands default to a summary. Add --apply to execute; --dry-run explicitly previews.' \
+        'Help, versions, diagnostics, status, show and list are read-only.' ;;
     install)
-        [[ $# == 0 || ( $# == 1 && $1 == --dry-run ) ]] || die 'Usage: dv install [--dry-run]'
-        if [[ ${1:-} == --dry-run ]]; then DV_DRY_RUN=true; fi
+        parse_change_options "$@"
+        set -- "${DV_CHANGE_ARGS[@]}"
+        if [[ $# == 1 && ( $1 == --help || $1 == -h ) ]]; then
+            printf 'Usage: dv install [--apply | --dry-run]\nDefault: summary only. Add --apply to copy/register the runtime.\n'
+            exit 0
+        fi
+        (($# == 0)) || die 'Usage: dv install [--apply | --dry-run]'
         source "$DV_ROOT/linux/lib/install.sh"
-        install_runtime ;;
+        install_runtime
+        [[ $DV_DRY_RUN != true ]] || preview_notice ;;
     versions|doctor|workspace|docker|git|worktree|cleanup) source "$DV_ROOT/linux/tools/commands/$command.sh" ;;
     *) die "Unknown command: $command (see dv help)" ;;
 esac

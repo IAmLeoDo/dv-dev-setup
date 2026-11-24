@@ -1,6 +1,8 @@
 @echo off
-setlocal
+setlocal DisableDelayedExpansion
 set "DvExitCode=0"
+if not "%~5"=="" goto invalid
+if "%~1"=="setup" goto setup
 if not "%~3"=="" goto invalid
 if "%~1"=="" goto default
 if "%~1"=="menu" goto menu
@@ -32,7 +34,7 @@ echo dv %DvVersion%
 goto finish
 :setup
 if "%~2"=="" goto setupMenu
-call "%~dp0internal\windows\setup.bat" "%~2"
+call "%~dp0internal\windows\setup.bat" "%~2" "%~3" "%~4"
 set "DvExitCode=%errorlevel%"
 goto finish
 :setupMenu
@@ -45,9 +47,10 @@ call "%~dp0internal\windows\check.bat"
 set "DvExitCode=%errorlevel%"
 goto finish
 :help
-echo Usage: dev.bat [menu ^| setup [1^|2^|3^|4] ^| check ^| --version ^| help]
+echo Usage: dev.bat [menu ^| setup [1^|2^|3] [--apply ^| --dry-run] ^| check ^| --version ^| help]
+echo Changes default to summary only. Add --apply to execute; --dry-run previews explicitly.
 echo No argument: open the interactive menu. Press a number to select; Q to quit.
-echo setup: open submenu. 1 enable WSL, 2 install Ubuntu, 3 configure WSL, 4 check.
+echo setup: open preview submenu. 1 enable WSL, 2 install Ubuntu, 3 configure WSL, 4 check.
 echo check: inspect Windows and WSL. Run dev.sh inside Ubuntu for Linux tools.
 goto finish
 

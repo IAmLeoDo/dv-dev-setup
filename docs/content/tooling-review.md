@@ -35,6 +35,9 @@ Align OS versions, tool definitions, configuration, and verification. Validate x
 
 ## Current Source Organization
 
+Current mutating entrypoints preview by default and require `--apply` to execute.
+This also covers packaging, service changes and workspace/worktree operations.
+
 Start Ubuntu setup with `bash src/app/dev.sh setup` and inspect it with `bash src/app/dev.sh check`. On Windows use `src\app\dev.bat setup` / `check` from CMD, or prefix paths with `.\` in PowerShell. Configuration is in `src/app/config.ini`; implementation is under `src/app/internal/`.
 
 There is no separate launcher directory or PowerShell-script dependency. Bash and batch packagers preserve the runtime layout in `dist/`; see [Ship](ship.md). Organization and packaging do not remove the orchestration limitations above.

@@ -23,6 +23,11 @@ src/app/
 
 Run modules through the entrypoints. Installation modules depend on shared setup context and must not be executed individually.
 
+Commands that change files, install software, open an editor, control Docker or
+package a bundle default to summary-only dry-run. Add `--apply` to execute;
+`--dry-run` explicitly previews. Do not combine both flags. Read-only commands
+need no mode flag. Existing confirmations/backups remain in effect with --apply.
+
 ## Ubuntu
 
 Open Bash in `src/app/` in the Linux filesystem. Use a regular development account with sudo access; do not run the whole script with sudo. Requirements are Ubuntu 24.04 x86_64/aarch64, Internet access, and systemd for Docker. In WSL, prefer `~/workspace/` over `/mnt/c/`.
@@ -30,7 +35,7 @@ Open Bash in `src/app/` in the Linux filesystem. Use a regular development accou
 ```bash
 # Review config.ini before setup.
 bash dev.sh setup --dry-run
-bash dev.sh setup
+bash dev.sh setup --apply
 # Open a new Bash shell, return to this directory, then check:
 bash dev.sh check
 ```
@@ -40,27 +45,32 @@ bash dev.sh check
 | `bash dev.sh --version` | Display the dv release version from `VERSION`. |
 | `bash dev.sh versions` | Report installed tool versions in the current Ubuntu environment. |
 | `bash dev.sh help` | Display usage. |
-| `bash dev.sh setup --only aliases` | Configure Bash shortcuts from `[aliases]`. |
-| `bash dev.sh setup --only git` | Run only the Git module. |
+| `bash dev.sh setup --only aliases --apply` | Configure Bash shortcuts from `[aliases]`. |
+| `bash dev.sh setup --only git --apply` | Run only the Git module. |
 | `bash dev.sh setup --verify` | Inspect the environment without installing tools. |
 | `bash dev.sh check --github` | Include GitHub SSH authentication checks. |
 | `bash dev.sh cleanup all --keep dv,pyenv,nvm` | Preview cleanup while keeping selected tools. |
 | `bash dev.sh cleanup tools nvm --apply` | Remove the selected tool after confirmation. |
-| `bash dev.sh install [--dry-run]` | Copy the Linux runtime to the tools directory and register `dv`. |
+| `bash dev.sh install [--apply \| --dry-run]` | Preview runtime copy and CLI registration; add `--apply` to execute. |
 | `bash dev.sh workspace` | Inspect the workspace. |
-| `bash dev.sh workspace open [DIR ...]` | Open the default project root or specified folders in VS Code. |
-| `bash dev.sh workspace open --add DIR ...` | Add folders to the last active VS Code window. |
+| `bash dev.sh workspace open --apply [DIR ...]` | Open the default project root or specified folders in VS Code. |
+| `bash dev.sh workspace open --apply --add DIR ...` | Add folders to the last active VS Code window. |
 | `bash dev.sh docker status` | Inspect Docker state. |
 
 `--only` accepts `tools`, `system`, `git`, `ssh`, `python`, `node`, `docker`, `vscode`, `workspace`, or `aliases`. Configuration can disable supported module toggles. Diagnostics cover key tools and configuration, not every installed package. SSH registration and editor configuration still require manual steps.
 
-Setup first copies the Linux runtime to `DV_TOOLS_ROOT/app` (default
+Setup with `--apply` first copies the Linux runtime to `DV_TOOLS_ROOT/app` (default
 `~/.local/share/dv-dev-setup/app`) and registers `~/.local/bin/dv`. It then runs
-selected modules from that copy. `setup --only tools` or `install` copies just
+selected modules from that copy. `setup --only tools --apply` or `install --apply` copies just
 the tools; dry-run writes nothing. User settings live in `~/.config/dv/config.ini`
 and survive reinstalls. Aliases use the installed copy, so source or downloaded
 bundles can be moved afterward. Diagnostics show **TOOL PATHS** before System.
 Direct source help/diagnostic commands remain read-only and do not require installation.
+
+Docker setup can optionally add your current non-root account to the `docker`
+group: set `DV_DOCKER_ADD_USER_TO_GROUP=true` and run
+`bash dev.sh setup --only docker --apply`. This is root-equivalent access and is
+disabled by default. Log in again or run `newgrp docker` manually afterward.
 
 ## Windows
 
@@ -86,9 +96,9 @@ Both shells invoke native batch; no `.ps1` or internal PowerShell invocation is 
 
 | CMD command | Action | Account / privileges |
 | --- | --- | --- |
-| `dev.bat setup 1` | Enable WSL2 Windows features. | Administrator |
-| `dev.bat setup 2` | Install Ubuntu 24.04 for the current account. | Normal development account |
-| `dev.bat setup 3` | Configure `.wslconfig` with confirmation and backup. | Normal development account |
+| `dev.bat setup 1 --apply` | Enable WSL2 Windows features. | Administrator |
+| `dev.bat setup 2 --apply` | Install Ubuntu 24.04 for the current account. | Normal development account |
+| `dev.bat setup 3 --apply` | Configure `.wslconfig` with confirmation and backup. | Normal development account |
 | `dev.bat check` | Check Windows and WSL readiness. | Normal account |
 
 In PowerShell, prefix each batch path with `.\`. If step 1 requests a restart, save work and restart manually. After step 2, run `wsl -d Ubuntu-24.04` to create the initial Linux user and password. After step 3, save work before manually running `wsl --shutdown` to apply configuration.
@@ -100,13 +110,15 @@ Windows menu; in PowerShell use `.\dev.bat`. Double-clicking opens the same menu
 Use number keys to choose Setup, Check environment, Version, or Help; `Q` exits.
 The setup submenu has four steps and `B` returns to the main menu (or finishes
 when opened directly with `dev.bat setup`). Invalid selection keys are ignored.
+Steps 1-3 only preview in the menu. Execute a step from the command line with
+`dev.bat setup NUMBER --apply` (PowerShell: `.\dev.bat setup NUMBER --apply`).
 
 Each action shows its output and an OK, failure, or restart-required status.
 Press a key to return to the menu. Setup runs only the selected step; opening
 or navigating menus does not install anything. Scripts do not automatically
 elevate or restart Windows. The menu returns the last action's exit code on exit.
 
-Direct commands such as `dev.bat setup 1`, `dev.bat check`, and `dev.bat help`
+Direct commands such as `dev.bat setup 1 --apply`, `dev.bat check`, and `dev.bat help`
 remain available and wait for a key before returning, preserving their exit code.
 For automation, set `DV_NO_PAUSE=true` before calling the script. This skips the
 final wait; without arguments it shows help instead of opening a menu. Explicit
@@ -151,10 +163,10 @@ Packagers live in `src/scripts/ship/`. From **this directory (`src/app/`)**:
 
 | Platform | Command |
 | --- | --- |
-| Ubuntu Bash | `bash ../scripts/ship/ship.sh` |
-| Windows CMD | `..\scripts\ship\ship.bat` |
-| Windows PowerShell | `..\scripts\ship\ship.bat` |
-| macOS Bash | `bash ../scripts/ship/ship.sh` |
+| Ubuntu Bash | `bash ../scripts/ship/ship.sh --apply` |
+| Windows CMD | `..\scripts\ship\ship.bat --apply` |
+| Windows PowerShell | `..\scripts\ship\ship.bat --apply` |
+| macOS Bash | `bash ../scripts/ship/ship.sh --apply` |
 
 Packaging creates `dist/vX.X.X_yyMMdd_HHmmss/` at the repository root without requiring Python or make. Copy the entire bundle, including `internal/`, to the destination and use the same entrypoints. `config.ini` is included; external overrides are not. Do not keep persistent data in `dist/`.
 

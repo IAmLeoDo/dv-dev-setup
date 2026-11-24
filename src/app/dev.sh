@@ -10,10 +10,11 @@ case $command in
             'Usage: bash dev.sh COMMAND [OPTIONS]' \
             '  --version                                  Show the dv release version' \
             '  versions                                   Show installed tool versions' \
-            '  setup [--all|--only MODULE|--verify] [--dry-run]  Set up Ubuntu 24.04 (includes aliases)' \
+            '  setup [--all|--only MODULE|--verify] [--apply|--dry-run]  Preview/apply Ubuntu setup' \
             '  check [--github]                              Inspect environment' \
-            '  install [--dry-run]                          Copy runtime tools and register the dv CLI' \
+            '  install [--apply|--dry-run]                  Preview/apply runtime copy and CLI registration' \
             '  cleanup [cache|project DIR|python VERSION|node VERSION|all|tools|packages] [--apply]  Preview or clean selected dependencies' \
-            '  workspace|docker|git|worktree                  Daily commands' ;;
+            '  workspace|docker|git|worktree                  Daily commands' \
+            'Changes default to summary only. Add --apply to execute; --dry-run explicitly previews.' ;;
     *) exec bash "$ROOT/internal/linux/tools/dv" "$command" "$@" ;;
 esac

@@ -5,7 +5,7 @@
 ## Ubuntu
 
 - **systemd is unavailable:** Merge `[boot]` and `systemd=true` into `/etc/wsl.conf` for WSL. Save work, then run `wsl --shutdown` from Windows. Check `cat /proc/1/comm` after restarting Ubuntu.
-- **Docker permission denied:** Use `sudo docker ...`. A stopped service is expected in on-demand mode; use `dv docker start`. `dv docker stop` stops the socket too, preventing socket activation.
+- **Docker permission denied:** Use `sudo docker ...`, or opt in to Docker group membership during setup with `DV_DOCKER_ADD_USER_TO_GROUP=true bash src/app/dev.sh setup --only docker --apply`, then log in again or run `newgrp docker` in your current terminal. Docker group access is root-equivalent. A stopped service is expected in on-demand mode; use `dv docker start --apply`. `dv docker stop --apply` stops the socket too, preventing socket activation.
 - **Existing Docker packages or a different apt source:** Review the migration manually. The installer does not automatically remove Docker Desktop, distro packages, or conflicting sources.
 - **pyenv/nvm is missing:** Open a new Bash shell and inspect `~/.bashrc` initialization. Configure other shells according to upstream instructions. Inspect existing installation directories before replacing anything.
 - **GitHub SSH returns exit code 1:** GitHub's successful SSH authentication response also uses exit code 1. Verify the success message, loaded keys with `ssh-add -l`, registered public keys, and the host fingerprint before testing `ssh -T git@github.com`.
@@ -24,7 +24,7 @@ dvh
 ```
 
 If the file does not exist, return to the checkout's `src/app/` or the copied
-bundle directory and run `bash dev.sh setup --only aliases`, without sudo and
+bundle directory and run `bash dev.sh setup --only aliases --apply`, without sudo and
 without `--dry-run`. Keep `DV_INSTALL_ALIASES=true`. Then run the source command
 above in your terminal. Windows setup alone does not install Linux aliases, and
 full Ubuntu setup may have failed before reaching the aliases module.

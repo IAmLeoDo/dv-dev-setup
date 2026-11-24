@@ -1,5 +1,6 @@
 # Runtime files only; local overrides are never packaged.
 internal/linux/lib/aliases.sh
+internal/linux/lib/docker.sh
 internal/linux/lib/install.sh
 internal/linux/install-files.txt
 internal/linux/lib/cleanup-tools.sh
@@ -25,6 +26,7 @@ internal/linux/tools/commands/git.sh
 internal/linux/tools/commands/workspace.sh
 internal/linux/tools/commands/worktree.sh
 internal/windows/menu.bat
+internal/windows/change-mode.bat
 internal/windows/check.bat
 internal/windows/configure-wsl.bat
 internal/windows/enable-wsl.bat

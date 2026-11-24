@@ -2,13 +2,16 @@
 
 Run these commands from the repository root; make is not required.
 
+Packaging defaults to summary-only preview. The commands below use `--apply` to
+create bundles and increment `VERSION`; omit it or use `--dry-run` to preview.
+
 | Purpose | Command |
 | --- | --- |
 | Bash syntax and ShellCheck | `bash src/scripts/check/check.sh` |
 | Existing bundle validation | `bash src/scripts/check/bundle.sh dist/vX.X.X_yyMMdd_HHmmss` |
-| Linux/macOS packaging | `bash src/scripts/ship/ship.sh` |
-| Windows CMD packaging | `src\scripts\ship\ship.bat` |
-| Windows PowerShell packaging | `.\src\scripts\ship\ship.bat` |
+| Linux/macOS packaging | `bash src/scripts/ship/ship.sh --apply` |
+| Windows CMD packaging | `src\scripts\ship\ship.bat --apply` |
+| Windows PowerShell packaging | `.\src\scripts\ship\ship.bat --apply` |
 
 `check/` contains development-only checks and is not shipped. Static checking
 requires ShellCheck and does not change the system. Bundle checking compares

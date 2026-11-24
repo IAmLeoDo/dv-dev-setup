@@ -10,8 +10,6 @@ install_runtime() (
     config="$HOME/.config/dv/config.ini"
     manifest="$source_app/internal/linux/install-files.txt"
     [[ -f $manifest ]] || die 'Linux runtime install manifest is missing'
-    ((EUID != 0)) || die 'Install tools as your Linux development user, not root or sudo.'
-    require_ubuntu
     if [[ -L $target || ( -e $target && ! -d $target ) ]]; then die 'Tool destination must be a regular directory'; fi
     if [[ -d $target ]]; then
         if [[ -L $target/.dv-managed-runtime || ! -f $target/.dv-managed-runtime ]] ||
@@ -43,7 +41,7 @@ install_runtime() (
         files+=("$relative")
     done < "$manifest"
     ((${#files[@]} > 0)) || die 'Linux runtime install manifest is empty'
-    if [[ ${DV_DRY_RUN:-false} == true ]]; then
+    if [[ ${DV_DRY_RUN:-true} == true ]]; then
         log "Would copy ${#files[@]} Linux runtime files to $target"
         log "Would link $cli to $target/internal/linux/tools/dv"
         [[ $legacy_cli == false ]] || log 'Would back up the previous dv symlink before migrating it'
@@ -51,6 +49,8 @@ install_runtime() (
         append_once "$HOME/.bashrc" 'export PATH="$HOME/.local/bin:$PATH"'
         return
     fi
+    ((EUID != 0)) || die 'Install tools as your Linux development user, not root or sudo.'
+    require_ubuntu
     umask 077
     mkdir -p -- "$DV_TOOLS_ROOT" "$HOME/.local/bin" "$HOME/.config/dv"
     lock="$DV_TOOLS_ROOT/.install-lock"

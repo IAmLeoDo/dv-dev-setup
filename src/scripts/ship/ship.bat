@@ -1,7 +1,11 @@
 @echo off
-setlocal
+setlocal DisableDelayedExpansion
 for %%D in ("%~dp0..\..\..") do set "Root=%%~fD"
 set "Source=%Root%\src\app"
+if "%~1"=="--help" goto help
+if "%~1"=="-h" goto help
+call "%Source%\internal\windows\change-mode.bat" %*
+if errorlevel 1 exit /b 2
 set "Output=%Root%\dist"
 fsutil reparsepoint query "%Output%" >nul 2>&1
 if not errorlevel 1 (
@@ -15,6 +19,18 @@ for /f "delims=" %%T in ('cscript //nologo "%~dp0ship-timestamp.js"') do set "Ti
 if not defined Timestamp goto failed
 set "Output=%Root%\dist\v%NextVersion%_%Timestamp%"
 if exist "%Output%" goto failed
+for /f "usebackq eol=# delims=" %%F in ("%~dp0ship-files.txt") do (
+    call :validateFile "%%F"
+    if errorlevel 1 goto failed
+)
+if not exist "%Root%\LICENSE" goto failed
+if not exist "%~dp0ship-readme.txt" goto failed
+if "%DvApply%"=="true" goto execute
+echo Plan: copy the runtime manifest plus LICENSE and README.txt to "%Output%".
+echo Plan: advance source and bundle VERSION from %CurrentVersion% to %NextVersion% after successful copies.
+echo Preview only. Nothing changed. Add --apply to package the bundle.
+exit /b 0
+:execute
 mkdir "%Output%"
 if errorlevel 1 goto failed
 for /f "usebackq eol=# delims=" %%F in ("%~dp0ship-files.txt") do (
@@ -31,6 +47,15 @@ if errorlevel 1 goto failed
 if errorlevel 1 goto failed
 echo Version: %NextVersion%
 echo Shipped %Output%
+exit /b 0
+:help
+echo Usage: ship.bat [--apply ^| --dry-run]
+echo Default: summary only. Add --apply to create a bundle and increment VERSION.
+exit /b 0
+:validateFile
+set "Relative=%~1"
+set "Relative=%Relative:/=\%"
+if not exist "%Source%\%Relative%" exit /b 1
 exit /b 0
 :copy
 set "Relative=%~1"

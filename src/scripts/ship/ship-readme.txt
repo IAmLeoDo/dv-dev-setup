@@ -3,8 +3,17 @@ dv-dev-setup
 Review config.ini and copy the ENTIRE directory, including internal/.
 Do not store secrets in config.ini. Use DV_CONFIG for an external private override.
 
+Preview and apply:
+  Mutating commands default to a summary only. Add --apply to execute, or use
+  --dry-run to explicitly preview. Do not combine both flags. This covers setup,
+  install, cleanup, Docker changes/tests, workspace create/open and worktree
+  clone/add/open/remove. Read-only help, versions, doctor, status/show/list need
+  no apply flag. Existing confirmation and backup steps remain in effect.
+  Aliases forward flags: dvds previews; dvds --apply starts Docker.
+  Windows menu steps preview; run dev.bat setup NUMBER --apply to execute.
+
 Installed Linux tools:
-  Start from the extracted bundle inside Ubuntu/WSL. Setup automatically copies
+  Start from the extracted bundle inside Ubuntu/WSL. Setup with --apply copies
   the Linux runtime to a stable user-owned tools directory:
     ~/.local/share/dv-dev-setup/app/    Active runtime
     ~/.local/share/dv-dev-setup/backups/ Previous runtime copies, on changes only
@@ -13,13 +22,13 @@ Installed Linux tools:
     ~/.config/dv/aliases.bash          Generated Bash shortcuts
   DV_TOOLS_ROOT in [setup] selects a different tools storage root; app/ lives
   beneath it. Use an absolute Linux path outside /mnt/. No sudo is needed.
-  To copy/register only tools: bash dev.sh setup --only tools (or install).
+  To copy/register only tools: bash dev.sh setup --only tools --apply (or install --apply).
   Setup --dry-run and install --dry-run do not copy or write files.
   Installation uses only the Linux runtime allowlist. It never copies private
   overrides, keys or project data. Existing user config is preserved on updates.
   Changed runtime trees are backed up; identical installs do not make backups.
-  Run setup --only aliases once to migrate shortcuts from older source-based
-  versions. install / setup --only tools alone copies the CLI without regenerating
+  Run setup --only aliases --apply once to migrate shortcuts from older source-based
+  versions. install --apply / setup --only tools --apply copies the CLI without regenerating
   aliases. After alias setup succeeds, the original bundle can be moved/removed.
   dvc begins with TOOL PATHS before System and shows the actual installed runtime,
   CLI and config locations. A check run directly from source reports that source
@@ -32,7 +41,7 @@ Installed Linux tools:
 
 Ubuntu (Bash, from this directory):
   bash dev.sh setup --dry-run
-  bash dev.sh setup
+  bash dev.sh setup --apply
   bash dev.sh check
   bash dev.sh help
   bash dev.sh --version
@@ -50,7 +59,7 @@ Alias scenarios (Ubuntu Bash, including WSL and Ubuntu VMs):
      In [setup], keep DV_INSTALL_ALIASES=true; review names in [aliases].
 
        bash dev.sh setup --only aliases --dry-run
-       bash dev.sh setup --only aliases
+       bash dev.sh setup --only aliases --apply
 
      Setup runs in a child process; the terminal that launched it does not gain
      aliases automatically. Activate them in that SAME interactive Bash terminal:
@@ -73,7 +82,7 @@ Alias scenarios (Ubuntu Bash, including WSL and Ubuntu VMs):
        dvc                 # Inspect tools and environment
        dvv                 # Show installed tool versions
        dvw                 # Print configured workspace/project roots
-       dvwo                # Open the project root in VS Code
+       dvwo --apply # Open the project root in VS Code
 
      dvc groups results into System, Development tools, Git & SSH, Docker,
      Workspace, and Aliases. [OK] means available/configured, [WARN] needs review, and [INFO]
@@ -90,23 +99,24 @@ Alias scenarios (Ubuntu Bash, including WSL and Ubuntu VMs):
      are listed under Other tools.
 
      The final Aliases section starts each shortcut with its command mapping.
-     Usage, Actions/Options and Examples appear in separate indented groups;
+     Help aliases show only their mapping; other aliases include Usage,
+     Actions/Options and Examples in separate groups, separated by short --- lines;
      alternatives and flags are listed one per line with short explanations.
      dvclean separates summary-only examples from its --apply example.
      All examples use the actual configured alias name.
-     Example: dvwo [--add] [--] [DIR ...], dvwo ./frontend ./backend,
-     dvwo --add ./shared ./docs. dvc shows --github; dvclean lists cleanup actions,
+     Example: dvwo [--apply] [--add] [--] [DIR ...], dvwo --apply ./frontend ./backend,
+     dvwo --apply --add ./shared ./docs. dvc shows --github; dvclean lists cleanup actions,
      --keep and --apply. Git aliases show common options and native --help.
      It also checks the alias file's syntax/source line and shows activation.
      Examples are printed as hints only and are never executed. It does not execute the alias file or inspect the calling shell.
 
-     dvwo requires code to be available in PATH. With no arguments it opens the
+     dvwo --apply requires code in PATH. Without paths it opens the
      configured project root; you can also choose one or more existing folders:
 
-       dvwo .                           # Current directory
-       dvwo "$HOME/workspace/personal"   # A specified folder
-       dvwo ./frontend ./backend        # Multi-root workspace with both folders
-       dvwo --add ./shared ./docs        # Add to the last active VS Code window
+       dvwo . --apply # Current directory
+       dvwo "$HOME/workspace/personal" --apply # A specified folder
+       dvwo ./frontend ./backend --apply # Multi-root workspace with both folders
+       dvwo --add ./shared ./docs --apply # Add to the last active VS Code window
        dvwo --help
 
      Relative paths use your current directory. Quote paths containing spaces.
@@ -133,13 +143,21 @@ Alias scenarios (Ubuntu Bash, including WSL and Ubuntu VMs):
   4. Start Docker when needed and stop it when finished
      With Docker Engine installed and systemd available:
 
-       dvds                # dv docker start; may prompt for sudo
+       dvds --apply # dv docker start; may prompt for sudo
        dvd                 # dv docker status
        sudo docker ps      # Inspect running containers
-       dvdt                # dv docker stop
+       dvdt --apply # dv docker stop
 
      Save container work before dvdt: it stops the Docker service and socket.
      dvd may return a nonzero status when Docker is stopped.
+
+     Optional: grant the current setup user Docker access without sudo:
+       DV_DOCKER_ADD_USER_TO_GROUP=true bash dev.sh setup --only docker
+       DV_DOCKER_ADD_USER_TO_GROUP=true bash dev.sh setup --only docker --apply
+     This grants root-equivalent access. Existing groups are preserved, and
+     membership is unchanged by default. After applying, log out/in or run
+     newgrp docker in your own Bash terminal. Setup never changes socket modes
+     or launches a new group-enabled shell. Service control still needs sudo.
 
   5. Add or rename shortcuts
      Edit [aliases] in ~/.config/dv/config.ini after installation. For example:
@@ -158,18 +176,18 @@ Alias scenarios (Ubuntu Bash, including WSL and Ubuntu VMs):
      Use the installed runtime to preview and apply changes (default tools path):
 
        bash "$HOME/.local/share/dv-dev-setup/app/dev.sh" setup --only aliases --dry-run
-       bash "$HOME/.local/share/dv-dev-setup/app/dev.sh" setup --only aliases
+       bash "$HOME/.local/share/dv-dev-setup/app/dev.sh" setup --only aliases --apply
 
      If DV_TOOLS_ROOT is customized, use Active runtime from dvc instead.
 
      Open a new Bash shell, then use my_status --short, wt, or dvr as needed.
-     wt requires a repository in the supported worktree layout. dvr restarts Docker.
+     wt requires a repository in the supported worktree layout. dvr --apply restarts Docker; dvr alone previews.
      Edit the persistent config.ini rather than generated aliases.bash, which setup replaces.
      A [aliases] section in an external DV_CONFIG replaces the entire alias list;
      include every shortcut you want to keep. Example with a private override:
 
        DV_CONFIG="$HOME/config.local.ini" bash dev.sh setup --only aliases --dry-run
-       DV_CONFIG="$HOME/config.local.ini" bash dev.sh setup --only aliases
+       DV_CONFIG="$HOME/config.local.ini" bash dev.sh setup --only aliases --apply
 
   6. An alias is missing, or the bundle has moved
      Confirm you are in Ubuntu Bash, DV_INSTALL_ALIASES is true, and the name is
@@ -184,9 +202,9 @@ Alias scenarios (Ubuntu Bash, including WSL and Ubuntu VMs):
        dvh
 
      If source reports "No such file or directory", run alias setup from the
-     installed runtime or an extracted bundle, without --dry-run and without sudo.
+     installed runtime or an extracted bundle, with --apply and without sudo.
      Default installed command:
-       bash "$HOME/.local/share/dv-dev-setup/app/dev.sh" setup --only aliases
+       bash "$HOME/.local/share/dv-dev-setup/app/dev.sh" setup --only aliases --apply
      Then run the source command above in your interactive Bash terminal. Windows
      setup alone does not create Linux aliases. Setup must complete successfully;
      inspect earlier failures if full setup stopped before reaching aliases.

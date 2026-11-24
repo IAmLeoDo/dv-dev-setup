@@ -1,10 +1,37 @@
 # shellcheck shell=bash
 # shellcheck disable=SC2034 # Shared state consumed by sourced modules.
 DV_ROOT=${DV_ROOT:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}
+# Consent is scoped to this invocation, never inherited from the environment.
+DV_CHANGE_MODE=''
 # shellcheck source=linux/lib/logging.sh
 source "$DV_ROOT/linux/lib/logging.sh"
 # shellcheck source=linux/lib/detection.sh
 source "$DV_ROOT/linux/lib/detection.sh"
+# Mutations require a flag on this invocation; environment/config cannot opt in.
+# Keep -- intact so filenames following it are never interpreted as mode flags.
+parse_change_options() {
+    local option locked=${DV_DRY_RUN:-false}
+    DV_DRY_RUN=true
+    DV_CHANGE_MODE=''
+    DV_CHANGE_ARGS=()
+    while (($#)); do
+        option=$1; shift
+        case $option in
+            --apply|--dry-run)
+                [[ -z $DV_CHANGE_MODE || $DV_CHANGE_MODE == "$option" ]] || die 'Do not combine --apply and --dry-run'
+                DV_CHANGE_MODE=$option ;;
+            --) DV_CHANGE_ARGS+=(-- "$@"); break ;;
+            *) DV_CHANGE_ARGS+=("$option") ;;
+        esac
+    done
+    if [[ $DV_CHANGE_MODE == --apply ]]; then
+        [[ $locked != true ]] || die 'DV_DRY_RUN=true prevents --apply'
+        DV_DRY_RUN=false
+    fi
+}
+preview_notice() {
+    log 'Preview only. Nothing changed. Add --apply to this command to execute the plan.'
+}
 load_config() {
     local tools_root_from_env=${DV_TOOLS_ROOT+x}
     # Installed tools automatically use the persistent user override.
@@ -26,7 +53,7 @@ load_config() {
         [[ $line =~ ^(DV_[A-Z_]+)=(.*)$ ]] || die 'Invalid configuration assignment'
         key=${BASH_REMATCH[1]}; value=${BASH_REMATCH[2]}
         case $key in
-            DV_TOOLS_ROOT|DV_ORG|DV_WORKSPACE_ROOT|DV_PROJECTS_ROOT|DV_GITHUB_USER|DV_GIT_NAME|DV_GIT_EMAIL|DV_GIT_DEFAULT_BRANCH|DV_PYTHON_VERSION|DV_PYENV_VERSION|DV_NODE_VERSION|DV_NVM_VERSION|DV_INSTALL_GIT|DV_INSTALL_SSH|DV_INSTALL_PYTHON|DV_INSTALL_NODE|DV_INSTALL_DOCKER|DV_INSTALL_ALIASES|DV_DOCKER_ON_DEMAND|DV_SSH_GENERATE|DV_SSH_NO_PASSPHRASE|DV_GITHUB_TEST|DV_DOCKER_TEST) ;;
+            DV_TOOLS_ROOT|DV_ORG|DV_WORKSPACE_ROOT|DV_PROJECTS_ROOT|DV_GITHUB_USER|DV_GIT_NAME|DV_GIT_EMAIL|DV_GIT_DEFAULT_BRANCH|DV_PYTHON_VERSION|DV_PYENV_VERSION|DV_NODE_VERSION|DV_NVM_VERSION|DV_INSTALL_GIT|DV_INSTALL_SSH|DV_INSTALL_PYTHON|DV_INSTALL_NODE|DV_INSTALL_DOCKER|DV_INSTALL_ALIASES|DV_DOCKER_ON_DEMAND|DV_DOCKER_ADD_USER_TO_GROUP|DV_SSH_GENERATE|DV_SSH_NO_PASSPHRASE|DV_GITHUB_TEST|DV_DOCKER_TEST) ;;
             *) die "Unknown configuration key: $key" ;;
         esac
         if [[ $value == \"*\" || $value == \'*\' ]]; then value=${value:1:${#value}-2}; fi
@@ -45,7 +72,7 @@ load_config() {
         DV_TOOLS_ROOT=$(cd -- "$DV_ROOT/../.." && pwd -P)
     fi
     local flag
-    for flag in DV_INSTALL_GIT DV_INSTALL_SSH DV_INSTALL_PYTHON DV_INSTALL_NODE DV_INSTALL_DOCKER DV_INSTALL_ALIASES DV_DOCKER_ON_DEMAND DV_SSH_GENERATE DV_SSH_NO_PASSPHRASE DV_GITHUB_TEST DV_DOCKER_TEST; do
+    for flag in DV_INSTALL_GIT DV_INSTALL_SSH DV_INSTALL_PYTHON DV_INSTALL_NODE DV_INSTALL_DOCKER DV_INSTALL_ALIASES DV_DOCKER_ON_DEMAND DV_DOCKER_ADD_USER_TO_GROUP DV_SSH_GENERATE DV_SSH_NO_PASSPHRASE DV_GITHUB_TEST DV_DOCKER_TEST; do
         [[ ${!flag:-false} == true || ${!flag:-false} == false ]] || die "Invalid boolean: $flag"
     done
     [[ $DV_PYTHON_VERSION =~ ^3\.[0-9]+\.[0-9]+$ ]] || die 'Invalid Python version'

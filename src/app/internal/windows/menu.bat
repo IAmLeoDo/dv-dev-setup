@@ -1,5 +1,5 @@
 @echo off
-setlocal
+setlocal DisableDelayedExpansion
 set "DvMenuResult=0"
 if "%DV_NO_PAUSE%"=="true" goto noninteractive
 if "%~1"=="setup" goto openSetup
@@ -78,6 +78,7 @@ echo.
 echo     [B]  Back / close setup menu
 echo.
 echo   Run one step at a time. Save work before any manual restart.
+echo   Steps 1-3 preview only. Run dev.bat setup NUMBER --apply to execute.
 echo.
 choice /c 1234B /n /m "  Select [1-4, B]: "
 if errorlevel 255 goto inputFailed
@@ -155,6 +156,7 @@ exit /b 0
 :noninteractive
 echo Interactive menus are disabled by DV_NO_PAUSE=true.
 echo Use dev.bat setup 1, setup 2, setup 3, check, --version or help.
+echo Setup previews only; add --apply to execute a numbered setup step.
 exit /b 2
 :inputFailed
 echo Unable to read a menu selection. Run from an interactive terminal.

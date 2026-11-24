@@ -27,7 +27,9 @@ if [[ $DV_DOCKER_ON_DEMAND == true ]]; then
     # Prevent package post-install scripts from leaving Engine running after setup.
     run sudo systemctl disable --now docker.service docker.socket
 else run sudo systemctl enable --now docker.service; fi
-log 'Docker group grants root-equivalent privileges; membership is never changed automatically.'
+# shellcheck source=src/app/internal/linux/lib/docker.sh
+source "$DV_ROOT/linux/lib/docker.sh"
+configure_docker_group
 if [[ ${DV_DOCKER_TEST:-false} == true ]]; then
     was_active=false
     if systemctl is-active --quiet docker.service; then was_active=true; fi

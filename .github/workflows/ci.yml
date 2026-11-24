@@ -58,10 +58,20 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v4
+      # Preview must leave both the filesystem and release counter unchanged.
+      - name: Check packaging preview is read-only
+        run: |
+          before=$(cat src/app/VERSION)
+          bash src/scripts/ship/ship.sh
+          bash src/scripts/ship/ship.sh --dry-run
+          [[ ! -e dist && $(cat src/app/VERSION) == "$before" ]]
+          if bash src/scripts/ship/ship.sh --apply --dry-run; then
+            exit 1
+          fi
       # Ship only copies allowlisted runtime files. Its VERSION change stays in
       # this disposable checkout and is never pushed back to the repository.
       - name: Build standalone bundle
-        run: bash src/scripts/ship/ship.sh
+        run: bash src/scripts/ship/ship.sh --apply
       # A clean checkout must produce exactly one bundle. The helper verifies
       # file membership, version and relocation. Runtime checks run on Linux only.
       - name: Verify bundle and safe entrypoints
@@ -87,11 +97,47 @@ jobs:
       DV_NO_PAUSE: 'true'
     steps:
       - uses: actions/checkout@v4
+      # Exercise all mutating setup routes without elevation, prompts or writes.
+      # The inherited DvApply value deliberately cannot opt into execution.
+      - name: Check Windows setup previews and conflicting modes
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $env:DvApply = 'true'
+          $entrypoint = Join-Path $env:GITHUB_WORKSPACE 'src/app/dev.bat'
+          $config = Join-Path $env:USERPROFILE '.wslconfig'
+          $before = if (Test-Path -LiteralPath $config) { (Get-FileHash -LiteralPath $config).Hash } else { 'missing' }
+          foreach ($step in @('1', '2', '3')) {
+            & $entrypoint setup $step
+            if ($LASTEXITCODE -ne 0) { throw 'Default setup preview failed' }
+            & $entrypoint setup $step --dry-run
+            if ($LASTEXITCODE -ne 0) { throw 'Explicit setup preview failed' }
+            & $entrypoint setup $step --apply --dry-run
+            if ($LASTEXITCODE -ne 2) { throw 'Conflicting flags must return 2' }
+          }
+          $after = if (Test-Path -LiteralPath $config) { (Get-FileHash -LiteralPath $config).Hash } else { 'missing' }
+          if ($before -ne $after) { throw 'Preview changed WSL configuration' }
+          exit 0
+      - name: Check packaging preview from CMD
+        shell: cmd
+        run: |
+          set /p BeforeVersion=<src\app\VERSION
+          call src\scripts\ship\ship.bat
+          if errorlevel 1 exit /b 1
+          call src\scripts\ship\ship.bat --dry-run
+          if errorlevel 1 exit /b 1
+          if exist dist exit /b 1
+          set /p AfterVersion=<src\app\VERSION
+          if not "%BeforeVersion%"=="%AfterVersion%" exit /b 1
+          call src\scripts\ship\ship.bat --apply --dry-run
+          if not errorlevel 2 exit /b 1
+          if errorlevel 3 exit /b 1
+          exit /b 0
       # Native CMD packaging must work without Bash, Python, make or .ps1 files.
       - name: Build bundle from CMD
         shell: cmd
         run: |
-          call src\scripts\ship\ship.bat
+          call src\scripts\ship\ship.bat --apply
           if errorlevel 1 exit /b 1
       # PowerShell here is a CI caller of the native batch entrypoints, not an
       # application dependency. No PowerShell scripts are added to the repository.

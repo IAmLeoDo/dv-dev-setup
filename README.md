@@ -83,8 +83,8 @@ Keep the Ubuntu checkout in the Linux filesystem, such as `~/workspace/`, rather
 │   └── scripts/                 # Scripts grouped by purpose
 │       ├── check/               # Static checks and bundle validation
 │       └── ship/
-│           ├── ship.bat         # Windows batch packager
-│           ├── ship.sh          # Bash packager
+│           ├── ship.bat --apply # Windows batch packager
+│           ├── ship.sh --apply # Bash packager
 │           ├── ship-files.txt   # Explicit runtime-file allowlist
 │           ├── ship-readme.txt  # Bundled usage instructions
 │           └── ship-timestamp.js # Windows local timestamp formatter
@@ -98,20 +98,27 @@ Keep the Ubuntu checkout in the Linux filesystem, such as `~/workspace/`, rather
 
 No packaging step is required to use the checkout.
 
+Commands that change files, install software, open editors, control services or
+package a bundle default to a **summary-only preview**. Add `--apply` to execute;
+`--dry-run` explicitly requests the same preview. The flags cannot be combined.
+Help, versions, diagnostics and status/list/show commands remain read-only.
+Windows menu steps 1-3 preview their plan; execute a step explicitly with
+`dev.bat setup NUMBER --apply` (PowerShell: `.\dev.bat setup NUMBER --apply`).
+
 **Inside Ubuntu**, review `src/app/config.ini`, then run:
 
 ```bash
 bash src/app/dev.sh help
 bash src/app/dev.sh setup --dry-run
-bash src/app/dev.sh setup
+bash src/app/dev.sh setup --apply
 bash src/app/dev.sh check
 ```
 
 To install one component or register the daily CLI:
 
 ```bash
-bash src/app/dev.sh setup --only git
-bash src/app/dev.sh install
+bash src/app/dev.sh setup --only git --apply
+bash src/app/dev.sh install --apply
 # Open a new Bash shell after installation.
 dv help
 dv doctor
@@ -119,11 +126,15 @@ dv workspace
 dv git status
 ```
 
-Setup copies Linux runtime files to `~/.local/share/dv-dev-setup/app` and points
+Setup with `--apply` copies Linux runtime files to `~/.local/share/dv-dev-setup/app` and points
 `~/.local/bin/dv` there. Aliases use this installed copy, so the source checkout
 or downloaded bundle can be moved after setup. User settings are preserved in
-`~/.config/dv/config.ini`. Use `setup --only tools` or `install` to refresh just
+`~/.config/dv/config.ini`. Use `setup --only tools --apply` or `install --apply` to refresh just
 the tools; changed runtime copies are backed up before replacement.
+
+To enable Docker access without sudo during setup, opt in with
+`DV_DOCKER_ADD_USER_TO_GROUP=true` and run the Docker module with `--apply`.
+This grants root-equivalent access; see [Docker setup and group activation](docs/content/usage.md#docker-engine).
 
 **Windows CMD**, from the repository root:
 
@@ -222,10 +233,10 @@ Run from the repository root:
 
 | Environment | Command |
 | --- | --- |
-| Ubuntu Bash | `bash src/scripts/ship/ship.sh` |
-| Windows CMD | `src\scripts\ship\ship.bat` |
-| Windows PowerShell | `.\src\scripts\ship\ship.bat` |
-| macOS Bash | `bash src/scripts/ship/ship.sh` |
+| Ubuntu Bash | `bash src/scripts/ship/ship.sh --apply` |
+| Windows CMD | `src\scripts\ship\ship.bat --apply` |
+| Windows PowerShell | `.\src\scripts\ship\ship.bat --apply` |
+| macOS Bash | `bash src/scripts/ship/ship.sh --apply` |
 
 Packaging does not require Python or PowerShell scripts. The Windows packager uses native Windows commands; the Bash packager uses standard command-line tools.
 
@@ -241,7 +252,7 @@ dist/
     └── VERSION
 ```
 
-Copy the **entire versioned bundle directory** from `dist/` to the target machine. From that directory, run `bash dev.sh setup` inside Ubuntu, `dev.bat setup` in Windows CMD, or `.\dev.bat setup` in Windows PowerShell. On macOS, run setup inside your Ubuntu VM.
+Copy the **entire versioned bundle directory** from `dist/` to the target machine. From that directory, run `bash dev.sh setup --apply` inside Ubuntu, `dev.bat setup` in Windows CMD, or `.\dev.bat setup` in Windows PowerShell. On macOS, run setup inside your Ubuntu VM.
 
 Each ship operation creates a new `dist/vX.X.X_yyMMdd_HHmmss/` directory and preserves previous bundles. Keep persistent data and private overrides elsewhere. Only files listed in `src/scripts/ship/ship-files.txt`, plus the license and distribution instructions, are copied. Add new runtime files to the manifest or they will be missing from the bundle.
 
@@ -281,7 +292,7 @@ Run application commands directly from `src/app/` while developing. Regenerate `
 
 Edit `[aliases]` in `src/app/config.ini`, then run
 `bash src/app/dev.sh setup --only aliases --dry-run` to preview or
-`bash src/app/dev.sh setup --only aliases` to apply. The module lives in
+`bash src/app/dev.sh setup --only aliases --apply` to apply. The module lives in
 `src/app/internal/linux/scripts/10-aliases.sh`. Open a new Bash shell for shortcuts
 such as `dvc` (doctor), `dvv` (versions), `gs` (Git status), and `gd` (Git diff).
 See [alias configuration](docs/content/configuration.md#bash-aliases-ubuntu--wsl).
@@ -293,7 +304,7 @@ See [alias configuration](docs/content/configuration.md#bash-aliases-ubuntu--wsl
 For example, to introduce a `database` component:
 
 1. Add a sourced module such as `src/app/internal/linux/scripts/11-database.sh`. Follow an existing module and reuse helpers such as `run`, `apt_install`, `log`, and `die`. Modules receive configuration and shared functions from the orchestrator; do not execute them directly.
-2. Update `src/app/internal/linux/setup.sh`: add `database` to argument validation, the execution list, the module mapping, and help text. Choose execution order according to dependencies; the filename alone does not determine order.
+2. Update `src/app/internal/linux/setup.sh`: add `database` to argument validation, the execution list, preview summary, module mapping, and help text. Choose execution order according to dependencies; the filename alone does not determine order.
 3. If configuration is needed, add defaults to `src/app/config.ini` and explicitly allow and validate new keys in `src/app/internal/linux/lib/common.sh`. For an install toggle, support `DV_INSTALL_DATABASE` in the parser and boolean validation; the orchestrator already derives toggle names from module names.
 4. Preserve existing installations and user data. Route mutations through dry-run-aware helpers and check third-party commands for side effects before invoking them.
 5. Extend diagnostics in `src/app/internal/linux/tools/commands/doctor.sh` when the new component should appear in environment checks.
@@ -362,7 +373,7 @@ On Ubuntu, run:
 
 ```bash
 bash src/app/dev.sh help
-bash src/scripts/ship/ship.sh
+bash src/scripts/ship/ship.sh --apply
 bash dist/vX.X.X_yyMMdd_HHmmss/dev.sh help
 bash src/scripts/check/bundle.sh dist/vX.X.X_yyMMdd_HHmmss
 ```
@@ -373,7 +384,7 @@ On Windows, run the following separately in **CMD**:
 
 ```bat
 src\app\dev.bat help
-src\scripts\ship\ship.bat
+src\scripts\ship\ship.bat --apply
 dist\vX.X.X_yyMMdd_HHmmss\dev.bat help
 echo %ERRORLEVEL%
 ```
@@ -382,7 +393,7 @@ And in **PowerShell**:
 
 ```powershell
 .\src\app\dev.bat help
-.\src\scripts\ship\ship.bat
+.\src\scripts\ship\ship.bat --apply
 .\dist\vX.X.X_yyMMdd_HHmmss\dev.bat help
 $LASTEXITCODE
 ```
@@ -400,8 +411,8 @@ Use a dedicated machine or VM for changes that install software or alter system 
 ```bash
 bash src/app/dev.sh setup --only git --dry-run
 # Run the next commands only in the intended test environment.
-bash src/app/dev.sh setup --only git
-bash src/app/dev.sh setup --only git
+bash src/app/dev.sh setup --only git --apply
+bash src/app/dev.sh setup --only git --apply
 bash src/app/dev.sh check
 ```
 
@@ -416,9 +427,9 @@ pull requests, pushes to `main`/`develop`, and manual dispatch. Older runs for t
 same PR/ref are cancelled when a new run starts.
 
 - **Static checks on Ubuntu:** Bash syntax and ShellCheck through `bash src/scripts/check/check.sh`, plus workflow validation with actionlint.
-- **Ubuntu:** Bash packaging, exact manifest membership, matching source/bundle versions, and source/copied-bundle help and version checks. Invalid commands must fail. The copied bundle runs outside the checkout in a path containing spaces.
-- **macOS:** Bash packaging, manifest membership, matching versions, and bundle relocation. Ubuntu application commands are not run on macOS.
-- **Windows:** Native CMD packaging, exact manifest membership and matching versions, then batch entrypoint checks from both CMD and PowerShell. Checks cover help/version, invalid commands, extra version arguments, a different working directory, and a copied bundle path containing spaces and a literal `!`.
+- **Ubuntu:** Packaging preview without writes, rejection of conflicting modes, explicit packaging with `--apply`, exact manifest membership, matching source/bundle versions, and source/copied-bundle help and version checks. Invalid commands must fail. The copied bundle runs outside the checkout in a path containing spaces.
+- **macOS:** Packaging preview/apply, manifest membership, matching versions, and bundle relocation. Ubuntu application commands are not run on macOS.
+- **Windows:** Setup previews and conflicting modes, CMD packaging preview/apply, exact manifest membership and matching versions, then batch entrypoint checks from both CMD and PowerShell. Checks cover help/version, invalid commands, extra version arguments, a different working directory, and a copied bundle path containing spaces and a literal `!`.
 - **Artifacts:** Verified bundles from each platform are retained for seven days. These are CI artifacts, not published releases.
 
 Shipping increments `VERSION` only in each disposable CI checkout; CI does not

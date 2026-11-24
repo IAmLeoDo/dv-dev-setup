@@ -81,6 +81,13 @@ configuration, keys, workspace data and existing installations. Follow existing
 confirmation and backup flows for sensitive changes. Do not introduce a test
 framework or a `tests/` tree unless explicitly requested.
 
+Every command that changes files, installs software, opens an editor, controls a
+service or packages a release must preview by default and require `--apply` to
+execute. Keep `--dry-run` as an explicit preview flag and reject conflicting
+modes. Confirmations and backups remain required where applicable. When adding
+a command, validate default/explicit preview without mutations as well as its
+apply path in an isolated environment.
+
 For implementation walkthroughs, see
 [adding a setup module](README.md#add-an-ubuntu-setup-module),
 [adding a CLI command](README.md#add-a-cli-command) and
@@ -108,7 +115,7 @@ or claim a failed check passed.
 For packaging or runtime-path changes:
 
 ```bash
-bash src/scripts/ship/ship.sh
+bash src/scripts/ship/ship.sh --apply
 # Replace this directory with the exact path printed by ship.
 bash src/scripts/check/bundle.sh dist/vX.X.X_yyMMdd_HHmmss
 ```
@@ -127,8 +134,8 @@ For Windows changes, validate the same `.bat` entrypoints in both shells:
 
 | Shell | Source help | Packaging |
 | --- | --- | --- |
-| CMD | `src\app\dev.bat help` | `src\scripts\ship\ship.bat` |
-| PowerShell | `.\src\app\dev.bat help` | `.\src\scripts\ship\ship.bat` |
+| CMD | `src\app\dev.bat help` | `src\scripts\ship\ship.bat --apply` |
+| PowerShell | `.\src\app\dev.bat help` | `.\src\scripts\ship\ship.bat --apply` |
 
 Also check invalid arguments and exit codes, execution from another working
 directory, and paths containing spaces and literal `!`. Quote a batch path with

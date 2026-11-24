@@ -1,10 +1,7 @@
 @echo off
-setlocal
-fltmc >nul 2>&1
-if not errorlevel 1 (
-    echo Run dev.bat setup 3 from a normal CMD under your development account, not as administrator.
-    exit /b 1
-)
+setlocal DisableDelayedExpansion
+call "%~dp0change-mode.bat" %*
+if errorlevel 1 exit /b 2
 set "Config=%~dp0..\..\config.ini"
 set "Target=%USERPROFILE%\.wslconfig"
 set "Render="
@@ -22,6 +19,19 @@ if not defined Memory goto invalid
 if not defined Swap goto invalid
 if not defined Forwarding goto invalid
 if not defined Reclaim goto invalid
+if "%DvApply%"=="true" goto execute
+echo Plan: write "%Target%" with these validated WSL settings:
+echo   memory=%Memory%, swap=%Swap%
+echo   localhostForwarding=%Forwarding%, autoMemoryReclaim=%Reclaim%
+echo Existing configuration is backed up after confirmation when a change is needed.
+echo Preview only. Nothing changed. Run dev.bat setup 3 --apply to execute.
+exit /b 0
+:execute
+fltmc >nul 2>&1
+if not errorlevel 1 (
+    echo Run dev.bat setup 3 --apply from your normal development account, not as administrator.
+    exit /b 1
+)
 :temporary
 set "Render=%TEMP%\dv-wsl-%RANDOM%-%RANDOM%.tmp"
 if exist "%Render%" goto temporary
@@ -68,19 +78,20 @@ if not exist "%~1" (
     echo Configuration file not found: "%~1"
     exit /b 1
 )
-rem Read only exact, validated WSL assignments. Never execute config contents.
+rem Normalize selected lines through a pipe before /x matching: config.ini may
+rem use LF in both source and bundles. Untrusted lines remain data, never code.
 findstr /b /c:"memory=" "%~1" >nul
 if not errorlevel 1 set "Memory="
-for /f "tokens=1,* delims==" %%K in ('findstr /r /x /c:"memory=[1-9][0-9]*GB" /c:"memory=[1-9][0-9]*MB" "%~1"') do set "Memory=%%L"
+for /f "tokens=1,* delims==" %%K in ('findstr /b /c:"memory=" "%~1" ^| find /v "" ^| findstr /r /x /c:"memory=[1-9][0-9]*GB" /c:"memory=[1-9][0-9]*MB"') do set "Memory=%%L"
 findstr /b /c:"swap=" "%~1" >nul
 if not errorlevel 1 set "Swap="
-for /f "tokens=1,* delims==" %%K in ('findstr /r /x /c:"swap=[1-9][0-9]*GB" /c:"swap=[1-9][0-9]*MB" /c:"swap=0" "%~1"') do set "Swap=%%L"
+for /f "tokens=1,* delims==" %%K in ('findstr /b /c:"swap=" "%~1" ^| find /v "" ^| findstr /r /x /c:"swap=[1-9][0-9]*GB" /c:"swap=[1-9][0-9]*MB" /c:"swap=0"') do set "Swap=%%L"
 findstr /b /c:"localhostForwarding=" "%~1" >nul
 if not errorlevel 1 set "Forwarding="
-for /f "tokens=1,* delims==" %%K in ('findstr /l /x /c:"localhostForwarding=true" /c:"localhostForwarding=false" "%~1"') do set "Forwarding=%%L"
+for /f "tokens=1,* delims==" %%K in ('findstr /b /c:"localhostForwarding=" "%~1" ^| find /v "" ^| findstr /l /x /c:"localhostForwarding=true" /c:"localhostForwarding=false"') do set "Forwarding=%%L"
 findstr /b /c:"autoMemoryReclaim=" "%~1" >nul
 if not errorlevel 1 set "Reclaim="
-for /f "tokens=1,* delims==" %%K in ('findstr /l /x /c:"autoMemoryReclaim=gradual" /c:"autoMemoryReclaim=dropCache" /c:"autoMemoryReclaim=disabled" "%~1"') do set "Reclaim=%%L"
+for /f "tokens=1,* delims==" %%K in ('findstr /b /c:"autoMemoryReclaim=" "%~1" ^| find /v "" ^| findstr /l /x /c:"autoMemoryReclaim=gradual" /c:"autoMemoryReclaim=dropCache" /c:"autoMemoryReclaim=disabled"') do set "Reclaim=%%L"
 exit /b 0
 :invalid
 echo Invalid WSL config. Use memory in MB/GB, swap in MB/GB or 0, true/false, gradual/dropCache/disabled.

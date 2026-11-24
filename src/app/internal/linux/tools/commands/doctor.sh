@@ -44,13 +44,18 @@ doctor_alias_usage() {
     local name=$1 target=$2 syntax=''
     case $target in
         'dv doctor') syntax=' [--github]' ;;
-        'dv workspace') syntax=' [show|open|create] [ARGS]' ;;
-        'dv workspace open') syntax=' [--add] [--] [DIR ...]' ;;
+        'dv workspace') syntax=' [show|open|create] [ARGS] [--apply]' ;;
+        'dv workspace open') syntax=' [--apply] [--add] [--] [DIR ...]' ;;
         'dv cleanup') syntax=' [ACTION] [OPTIONS]' ;;
+        'dv docker start'|'dv docker stop'|'dv docker restart') syntax=' [--apply | --dry-run]' ;;
         'git status') syntax=' [OPTIONS] [-- PATH ...]' ;;
         'git diff'|'git log --oneline') syntax=' [OPTIONS] [REV ...] [-- PATH ...]' ;;
     esac
     doctor_row INFO "$name" "$target"
+    if [[ $target == 'dv help' ]]; then
+        printf '\n'
+        return 0
+    fi
     doctor_alias_heading 'Usage'
     doctor_alias_text "$name$syntax"
     case $target in
@@ -83,10 +88,12 @@ doctor_alias_usage() {
             ;;
         'dv workspace open')
             doctor_alias_heading 'Examples'
-            doctor_alias_option "$name ." 'Open the current folder'
-            doctor_alias_option "$name ./frontend ./backend" 'Open multiple folders'
-            doctor_alias_option "$name --add ./shared" 'Add a folder to the last active window'
+            doctor_alias_option "$name ." 'Preview opening the current folder'
+            doctor_alias_option "$name --apply ./frontend ./backend" 'Open multiple folders'
+            doctor_alias_option "$name --apply --add ./shared" 'Add a folder to the last active window'
             doctor_alias_heading 'Options'
+            doctor_alias_option --apply 'Open VS Code; without this flag only a summary is shown'
+            doctor_alias_option --dry-run 'Summary only (default); do not open VS Code'
             doctor_alias_option '--add DIR ...' 'Add existing folders to the last active window'
             doctor_alias_option '--help, -h' 'Show folder-opening help'
             doctor_alias_option -- 'End options (for paths starting with -)'
@@ -104,8 +111,9 @@ doctor_alias_usage() {
             doctor_alias_option 'open --add DIR ...' 'Add folders to the last active editor window'
             doctor_alias_option 'create NAME' 'Create project sources/docs/builds directories'
             doctor_alias_heading 'Examples'
-            doctor_alias_text "$name open ."
-            doctor_alias_text "$name create my-project"
+            doctor_alias_text "$name open . --apply"
+            doctor_alias_text "$name create my-project --apply"
+            doctor_alias_text 'Open/create preview by default; add --apply to execute.'
             doctor_alias_text "$name open --help" ;;
         'git status')
             doctor_alias_heading 'Examples'
@@ -127,9 +135,11 @@ doctor_alias_usage() {
             doctor_alias_text "All Git log options: $name --help" ;;
         'dv worktree list')
             doctor_alias_text 'Run inside a project worktree. No extra arguments.' ;;
-        'dv docker start'|'dv docker stop'|'dv docker restart'|'dv docker status')
-            doctor_alias_text 'No extra arguments. Requires systemd.'
-            doctor_alias_text 'Start/stop/restart may prompt for sudo.' ;;
+        'dv docker start'|'dv docker stop'|'dv docker restart')
+            doctor_alias_text 'Summary only by default. Add --apply to change services.'
+            doctor_alias_text 'Requires systemd with --apply; may prompt for sudo.' ;;
+        'dv docker status')
+            doctor_alias_text 'Read-only. No extra arguments. Requires systemd.' ;;
     esac
     printf '\n'
 }
@@ -304,6 +314,9 @@ if configured_aliases=$(
     source "$DV_ROOT/linux/lib/aliases.sh" || exit 1
     load_aliases || exit 1
     for alias_index in "${!DV_ALIAS_NAMES[@]}"; do
+        if ((alias_index > 0)); then
+            printf '  ---\n'
+        fi
         doctor_alias_usage "${DV_ALIAS_NAMES[$alias_index]}" "${DV_ALIAS_TARGETS[$alias_index]}"
     done
 ); then
